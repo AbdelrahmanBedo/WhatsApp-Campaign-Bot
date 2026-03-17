@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Campaign data (generated at runtime)
+data/*.csv
+data/*.json
+data/*.xlsx
+!data/.gitkeep
+
+# Media uploads (user-provided)
+media/*
+!media/.gitkeep
+
+# Chrome profile (persistent session data)
+chrome_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
