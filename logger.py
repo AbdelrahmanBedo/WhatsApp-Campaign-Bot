@@ -43,6 +43,9 @@ class CampaignLogger:
         self._skipped: int = 0
         self._csv_file = None
         self._csv_writer = None
+        # UI callback hooks (set externally, thread-safe via queue)
+        self._on_progress = None   # (sent, failed, skipped, total) -> None
+        self._on_event = None      # (level_str, message_str) -> None
 
     def start(self, total_contacts: int) -> None:
         """Initialize CSV file with headers and set total count."""
@@ -82,11 +85,17 @@ class CampaignLogger:
         if self._verbose:
             self._print_progress()
 
+        if self._on_progress:
+            self._on_progress(self._sent, self._failed, self._skipped, self._total)
+
     def log_event(self, level: LogLevel, message: str) -> None:
         """Print a timestamped event to the console."""
         if self._verbose:
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"\n[{ts}] [{level.value}] {message}", flush=True)
+
+        if self._on_event:
+            self._on_event(level.value, message)
 
     def _print_progress(self) -> None:
         processed = self._sent + self._failed + self._skipped

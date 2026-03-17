@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -48,9 +49,15 @@ class AntiBanGuard:
     6. Contact reputation system
     """
 
-    def __init__(self, delay_cfg: DelayConfig, ban_cfg: AntiBanConfig):
+    def __init__(
+        self,
+        delay_cfg: DelayConfig,
+        ban_cfg: AntiBanConfig,
+        stop_event: threading.Event | None = None,
+    ):
         self._delay = delay_cfg
         self._ban = ban_cfg
+        self._stop_event = stop_event
         self.stats = SessionStats()
         self._recent_results: deque[bool] = deque(maxlen=ban_cfg.failure_rate_window)
         self._randomize_batch_target()
@@ -203,9 +210,14 @@ class AntiBanGuard:
     # ── Utilities ───────────────────────────────────────────────
 
     def sleep_with_jitter(self, base_seconds: float) -> None:
-        """Sleep for *base_seconds* +/- 10% random jitter."""
+        """Sleep for *base_seconds* +/- 10% jitter, interruptible by stop event."""
         jitter = base_seconds * 0.1 * (2 * random.random() - 1)
-        time.sleep(max(0.1, base_seconds + jitter))
+        remaining = max(0.1, base_seconds + jitter)
+        while remaining > 0:
+            if self._stop_event and self._stop_event.is_set():
+                return
+            time.sleep(min(0.5, remaining))
+            remaining -= 0.5
 
     def update_day_number(self) -> None:
         """Recalculate day_number from campaign_start_date."""

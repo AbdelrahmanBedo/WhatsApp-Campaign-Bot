@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -43,6 +44,7 @@ class CampaignManager:
 
     def __init__(self, config: CampaignConfig):
         self._config = config
+        self._stop_event = threading.Event()
         self._excel = ExcelHandler(config.contacts_file)
         self._engine = MessageEngine(config.message_templates)
         self._bot = WhatsAppBot(
@@ -50,10 +52,24 @@ class CampaignManager:
             headless=config.headless,
             delay_config=config.delay,
         )
-        self._guard = AntiBanGuard(config.delay, config.anti_ban)
+        self._guard = AntiBanGuard(config.delay, config.anti_ban, self._stop_event)
         self._logger = CampaignLogger(config.log_file)
         self._state = CampaignState()
         self._contacts: list[Contact] = []
+
+    # ── UI Integration ───────────────────────────────────────────
+
+    def request_stop(self) -> None:
+        """Signal the campaign to stop gracefully (thread-safe)."""
+        self._stop_event.set()
+
+    def set_progress_callback(self, cb) -> None:
+        """Attach a progress callback: cb(sent, failed, skipped, total)."""
+        self._logger._on_progress = cb
+
+    def set_event_callback(self, cb) -> None:
+        """Attach an event callback: cb(level_str, message_str)."""
+        self._logger._on_event = cb
 
     def run(self) -> None:
         """Full campaign lifecycle."""
@@ -112,6 +128,12 @@ class CampaignManager:
         start_idx = self._state.last_processed_index
 
         for i, contact in enumerate(self._contacts[start_idx:], start=start_idx):
+            # Stop signal from UI or external caller
+            if self._stop_event.is_set():
+                self._logger.log_event(LogLevel.WARN, "Campaign stopped by user")
+                self._state.status = "paused"
+                break
+
             # Pre-flight: can we send?
             allowed, reason = self._guard.can_send()
             if not allowed:
@@ -206,6 +228,9 @@ class CampaignManager:
                 return status
 
             # Retriable failure — short pause then retry
+            if self._stop_event.is_set():
+                self._guard.record_failure(contact.phone_number)
+                return SendStatus.FAILED
             if attempt < self._config.anti_ban.max_retries:
                 self._logger.log_event(
                     LogLevel.WARN,
