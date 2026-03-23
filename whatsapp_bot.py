@@ -160,10 +160,10 @@ class WhatsAppBot:
             # Type with simulation
             self._type_with_simulation(msg_box, message)
 
-            # Click send
+            # Press Enter to send (more reliable than clicking the send button)
             time.sleep(random.uniform(0.3, 0.8))
-            send_btn = self._driver.find_element(*self.SEL["send_button"])
-            send_btn.click()
+            msg_box = self._driver.find_element(*self.SEL["message_input"])
+            msg_box.send_keys(Keys.ENTER)
 
             # Verify delivery
             if self._wait_for_delivery():
@@ -215,10 +215,9 @@ class WhatsAppBot:
                 except TimeoutException:
                     pass
 
-            # Click send
+            # Press Enter to send media
             time.sleep(random.uniform(0.3, 0.8))
-            send_btn = self._driver.find_element(*self.SEL["send_media_btn"])
-            send_btn.click()
+            ActionChains(self._driver).send_keys(Keys.ENTER).perform()
 
             if self._wait_for_delivery(timeout=30):
                 return SendStatus.SUCCESS
