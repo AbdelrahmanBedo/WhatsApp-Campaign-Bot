@@ -79,7 +79,10 @@ class WhatsAppBot:
         """
         options = Options()
         if self._chrome_profile:
-            options.add_argument(f"--user-data-dir={self._chrome_profile}")
+            profile_dir = Path(self._chrome_profile).expanduser()
+            profile_dir.mkdir(parents=True, exist_ok=True)
+            options.add_argument(f"--user-data-dir={profile_dir.resolve()}")
+            options.add_argument("--profile-directory=Default")
         if self._headless:
             options.add_argument("--headless=new")
 
@@ -87,6 +90,8 @@ class WhatsAppBot:
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--window-size=1920,1080")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
         # Reduce automation fingerprint
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)

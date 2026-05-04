@@ -67,9 +67,10 @@ class AntiBanGuard:
 
     def get_daily_limit(self) -> int:
         """Calculate today's allowed volume based on warm-up schedule."""
-        if self.stats.day_number >= self._ban.warmup_days:
+        if self._ban.warmup_days <= 1 or self.stats.day_number >= self._ban.warmup_days:
             return self._ban.daily_limit_warmed_up
-        progress = self.stats.day_number / self._ban.warmup_days
+
+        progress = (self.stats.day_number - 1) / (self._ban.warmup_days - 1)
         return int(
             self._ban.warmup_start_volume
             + progress * (self._ban.daily_limit_warmed_up - self._ban.warmup_start_volume)
